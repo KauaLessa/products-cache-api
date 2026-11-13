@@ -1,0 +1,49 @@
+# Local:   docker compose up --build
+#          (Docker automatically loads compose.override.yaml as well)
+#
+# AWS:     each EC2 instance starts only its own service, skipping the override:
+#          Mongo EC2:  docker compose -f compose.yaml up -d mongo
+#          API EC2:    docker compose -f compose.yaml up -d --build api
+#          (on AWS, Redis is ElastiCache, so the "redis" service is not used)
+
+services:
+  api:
+    build: .
+    image: products-api:latest
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8.0
+    environment:
+      # If both are set, Mongo creates the root user and requires authentication.
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

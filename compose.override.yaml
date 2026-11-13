@@ -1,0 +1,16 @@
+# LOCAL-only adjustments. docker compose loads this file automatically
+# together with compose.yaml (unless you pass "-f compose.yaml").
+#
+# Inside the compose network, containers reach each other by service name,
+# so the API talks to "mongo" and "redis" instead of "localhost".
+
+services:
+  api:
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/products
+      REDIS_HOST: redis
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
