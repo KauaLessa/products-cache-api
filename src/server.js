@@ -4,27 +4,44 @@
 const config = require('./config/env');
 const { createApp } = require('./app');
 const { connectMongo, disconnectMongo } = require('./db/mongo');
+const { createRedisClient, connectRedis, disconnectRedis } = require('./cache/redisClient');
+const { createCacheService } = require('./cache/cacheService');
 const { createStrategy } = require('./strategies');
 const productRepository = require('./repositories/productRepository');
 
 async function start() {
-  // Built before connecting so an unknown/unimplemented strategy fails immediately.
-  const productStrategy = createStrategy(config.cache.strategy, { repository: productRepository });
-  const app = createApp({ productStrategy });
+  // The no-cache baseline does not create a Redis client at all: it neither depends
+  // on Redis nor pays any cost for it.
+  const usesCache = config.cache.strategy !== 'none';
+  const redisClient = usesCache ? createRedisClient() : null;
+  const cache = redisClient ? createCacheService(redisClient) : null;
 
-  await connectMongo();
+  // Built before connecting so an unknown/unimplemented strategy fails immediately.
+  const productStrategy = createStrategy(config.cache.strategy, {
+    repository: productRepository,
+    cache,
+    invalidateOnWrite: config.cache.invalidateOnWrite,
+  });
+  const app = createApp({ productStrategy, cache });
+
+  // MongoDB is the source of truth: the API refuses to start without it.
+  // Redis is optional: if it is down the API starts anyway and reconnects later.
+  await Promise.all([connectMongo(), redisClient ? connectRedis(redisClient) : null]);
 
   const server = app.listen(config.app.port, (err) => {
     if (err) throw err;
+    const cacheInfo = usesCache
+      ? `, ttl: ${config.cache.ttlSeconds}s, invalidate on write: ${config.cache.invalidateOnWrite}`
+      : '';
     console.log(
       `[api] listening on port ${config.app.port} ` +
-        `(env: ${config.app.nodeEnv}, cache strategy: ${config.cache.strategy})`,
+        `(env: ${config.app.nodeEnv}, cache strategy: ${config.cache.strategy}${cacheInfo})`,
     );
   });
 
   // Docker sends SIGTERM when stopping a container (Ctrl+C sends SIGINT).
   // We stop accepting connections, wait for in-flight requests to finish
-  // and only then close the database connection.
+  // and only then close the database and cache connections.
   let shuttingDown = false;
   async function shutdown(signal) {
     if (shuttingDown) return;
@@ -35,7 +52,7 @@ async function start() {
     setTimeout(() => process.exit(1), 10_000).unref();
 
     server.close(async () => {
-      await disconnectMongo();
+      await Promise.all([disconnectMongo(), redisClient ? disconnectRedis(redisClient) : null]);
       process.exit(0);
     });
   }

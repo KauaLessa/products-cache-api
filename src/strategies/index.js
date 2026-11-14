@@ -2,10 +2,11 @@
 // Adding a new policy = writing a new class and registering it here.
 
 const NoCacheStrategy = require('./NoCacheStrategy');
+const CacheAsideStrategy = require('./CacheAsideStrategy');
 
 const STRATEGIES = {
   none: NoCacheStrategy,
-  // 'cache-aside': CacheAsideStrategy,      (step 4)
+  'cache-aside': CacheAsideStrategy,
   // 'write-through': WriteThroughStrategy,  (step 6)
 };
 

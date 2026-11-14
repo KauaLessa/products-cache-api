@@ -4,7 +4,7 @@
 //
 // Strategy interface (shared by every cache strategy):
 //   getById(id)          -> { data: product | null, cacheStatus: 'HIT' | 'MISS' | 'BYPASS' }
-//   list({ page, limit }) -> { items, total, page, limit }
+//   list({ page, limit }) -> { data: { items, total, page, limit }, cacheStatus }
 //   create(data)         -> product
 //   update(id, changes)  -> product | null
 //   remove(id)           -> boolean
@@ -21,7 +21,8 @@ class NoCacheStrategy {
   }
 
   async list(params) {
-    return this.repository.list(params);
+    const data = await this.repository.list(params);
+    return { data, cacheStatus: 'BYPASS' };
   }
 
   async create(data) {

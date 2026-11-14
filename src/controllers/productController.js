@@ -14,7 +14,9 @@ function createProductController(strategy) {
   return {
     async list(req, res) {
       const { page = 1, limit = 20 } = matchedData(req, { locations: ['query'] });
-      res.json(await strategy.list({ page, limit }));
+      const { data, cacheStatus } = await strategy.list({ page, limit });
+      res.set('X-Cache', cacheStatus);
+      res.json(data);
     },
 
     async getById(req, res) {

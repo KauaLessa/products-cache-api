@@ -16,6 +16,7 @@ services:
       CACHE_STRATEGY: ${CACHE_STRATEGY:-none}
       CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-products-api:}
       CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-60}
+      CACHE_INVALIDATE_ON_WRITE: ${CACHE_INVALIDATE_ON_WRITE:-true}
     depends_on:
       mongo:
         condition: service_healthy

@@ -1,21 +1,35 @@
 // GET /health: reports whether the API and its dependencies are up.
-// Responds 200 when everything is fine and 503 when a dependency is down,
-// so Docker (or a load balancer) can tell whether the container is healthy.
+//   - MongoDB down -> 503: the API cannot serve most requests (it is the source of truth).
+//   - Only Redis down -> 200 "degraded": the API still answers by reading MongoDB
+//     (X-Cache: BYPASS). Returning 503 here would make a load balancer remove an
+//     instance that still works.
+//   - redis "disabled" -> CACHE_STRATEGY=none, no Redis client at all.
 
 const { Router } = require('express');
 const { pingMongo } = require('../db/mongo');
 
-const router = Router();
+function createHealthRoutes({ cache } = {}) {
+  const router = Router();
 
-router.get('/', async (req, res) => {
-  const mongoUp = await pingMongo();
+  router.get('/', async (req, res) => {
+    const [mongoUp, redisUp] = await Promise.all([
+      pingMongo(),
+      cache ? cache.ping() : Promise.resolve(null),
+    ]);
 
-  res.status(mongoUp ? 200 : 503).json({
-    status: mongoUp ? 'ok' : 'degraded',
-    services: {
-      mongo: mongoUp ? 'up' : 'down',
-    },
+    const redisStatus = redisUp === null ? 'disabled' : redisUp ? 'up' : 'down';
+    const healthy = mongoUp && redisStatus !== 'down';
+
+    res.status(mongoUp ? 200 : 503).json({
+      status: healthy ? 'ok' : 'degraded',
+      services: {
+        mongo: mongoUp ? 'up' : 'down',
+        redis: redisStatus,
+      },
+    });
   });
-});
 
-module.exports = router;
+  return router;
+}
+
+module.exports = { createHealthRoutes };
