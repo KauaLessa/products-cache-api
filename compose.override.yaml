@@ -3,12 +3,19 @@
 #
 # Inside the compose network, containers reach each other by service name,
 # so the API talks to "mongo" and "redis" instead of "localhost".
+#
+# The ${VAR:-default} values below can be overridden from the shell, which lets
+# you start the API with a different setup without editing .env, e.g.:
+#   MONGO_DB_NAME=products_validation CACHE_STRATEGY=cache-aside docker compose up -d api
 
 services:
   api:
     environment:
-      MONGODB_URI: mongodb://mongo:27017/products
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-products}
       REDIS_HOST: redis
+      CACHE_STRATEGY: ${CACHE_STRATEGY:-none}
+      CACHE_KEY_PREFIX: ${CACHE_KEY_PREFIX:-products-api:}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-60}
     depends_on:
       mongo:
         condition: service_healthy
