@@ -2,10 +2,16 @@
 // handles graceful shutdown (important inside containers).
 
 const config = require('./config/env');
-const app = require('./app');
+const { createApp } = require('./app');
 const { connectMongo, disconnectMongo } = require('./db/mongo');
+const { createStrategy } = require('./strategies');
+const productRepository = require('./repositories/productRepository');
 
 async function start() {
+  // Built before connecting so an unknown/unimplemented strategy fails immediately.
+  const productStrategy = createStrategy(config.cache.strategy, { repository: productRepository });
+  const app = createApp({ productStrategy });
+
   await connectMongo();
 
   const server = app.listen(config.app.port, (err) => {
