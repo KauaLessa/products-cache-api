@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "compose:up": "docker compose up --build",
     "compose:down": "docker compose down",
-    "deps:up": "docker compose up -d mongo redis"
+    "deps:up": "docker compose up -d mongo redis",
+    "seed": "node scripts/seed.js"
   },
   "keywords": [],
   "author": "",
