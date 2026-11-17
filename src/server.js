@@ -8,21 +8,37 @@ const { createRedisClient, connectRedis, disconnectRedis } = require('./cache/re
 const { createCacheService } = require('./cache/cacheService');
 const { createStrategy } = require('./strategies');
 const productRepository = require('./repositories/productRepository');
+const { createMetrics } = require('./metrics/metrics');
+const { instrument, cacheOutcome, sourceOutcome } = require('./metrics/instrument');
 
 async function start() {
+  const metrics = createMetrics({ strategy: config.cache.strategy });
+
   // The no-cache baseline does not create a Redis client at all: it neither depends
   // on Redis nor pays any cost for it.
   const usesCache = config.cache.strategy !== 'none';
   const redisClient = usesCache ? createRedisClient() : null;
-  const cache = redisClient ? createCacheService(redisClient) : null;
+  const cacheService = redisClient ? createCacheService(redisClient) : null;
+
+  // The strategy receives counting wrappers of the cache and the repository (same
+  // methods, same results), so the metrics need no change in any strategy.
+  // ping is left out: it serves /health, not the workload.
+  const cache =
+    cacheService &&
+    instrument(cacheService, { component: 'cache', metrics, outcome: cacheOutcome, skip: ['ping'] });
+  const repository = instrument(productRepository, {
+    component: 'source',
+    metrics,
+    outcome: sourceOutcome,
+  });
 
   // Built before connecting so an unknown/unimplemented strategy fails immediately.
   const productStrategy = createStrategy(config.cache.strategy, {
-    repository: productRepository,
+    repository,
     cache,
     invalidateOnWrite: config.cache.invalidateOnWrite,
   });
-  const app = createApp({ productStrategy, cache });
+  const app = createApp({ productStrategy, metrics, cache });
 
   // MongoDB is the source of truth: the API refuses to start without it.
   // Redis is optional: if it is down the API starts anyway and reconnects later.
