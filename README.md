@@ -35,7 +35,7 @@ To run the API on your machine instead (auto-reload): `npm install`,
 |---|---|---|---|
 | `none` (default) | always MongoDB | MongoDB | ✅ baseline |
 | `cache-aside` | Redis first; on a miss, load from MongoDB and store with a TTL | MongoDB, then invalidate the cache | ✅ |
-| `write-through` | same as cache-aside | MongoDB and cache updated together | 🔴 planned |
+| `write-through` | same as cache-aside | MongoDB, then `SET` the new value in the cache (`DEL` if the `SET` fails) | ✅ |
 
 Switch strategies by recreating only the API:
 
@@ -91,7 +91,7 @@ at startup (invalid values stop the API with a clear message). The most used:
 |---|---|---|
 | `CACHE_STRATEGY` | `none` | `none` \| `cache-aside` \| `write-through` |
 | `CACHE_TTL_SECONDS` | `60` | TTL of cache entries |
-| `CACHE_INVALIDATE_ON_WRITE` | `true` | `false` skips invalidation (demonstrates stale data) |
+| `CACHE_INVALIDATE_ON_WRITE` | `true` | cache-aside only: `false` skips invalidation (demonstrates stale data) |
 | `REDIS_HOST`, `REDIS_TLS`, `REDIS_CLUSTER_MODE`, `REDIS_PASSWORD` | local Redis | point the API to ElastiCache, `.env` changes only |
 
 ## Load testing
@@ -128,7 +128,7 @@ Two scripts (`SCRIPT=...`):
 
 Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: k6 summary) and
 `<name>-api.json` (`GET /metrics`: cache settings, hits, misses, load on MongoDB). Names start with the
-strategy, plus `-noinvalidate` when `CACHE_INVALIDATE_ON_WRITE=false`.
+strategy, plus `-noinvalidate` for cache-aside with `CACHE_INVALIDATE_ON_WRITE=false`.
 
 ## Status
 
@@ -136,6 +136,6 @@ strategy, plus `-noinvalidate` when `CACHE_INVALIDATE_ON_WRITE=false`.
 |---|---|---|
 | 1 | API + database with reads and updates; no-cache baseline | ✅ |
 | 2 | Cache-aside with explicit key and TTL; measure hits, misses, latency, load on the source | 🟡 implemented, metrics and load generator ready; AWS measurements pending |
-| 3 | Write-through; write order and behavior when the cache update fails | 🔴 |
+| 3 | Write-through; write order and behavior when the cache update fails | 🟡 implemented (see [design notes](docs/caching-strategies.md#write-through)); AWS measurements pending |
 | 4 | Demonstrate invalidation/expiration and the staleness window | 🟡 building blocks ready |
 | 5 | Load tests with and without cache, scaling clients; percentiles, throughput, hit rate, costs | 🔴 |

@@ -3,11 +3,12 @@
 
 const NoCacheStrategy = require('./NoCacheStrategy');
 const CacheAsideStrategy = require('./CacheAsideStrategy');
+const WriteThroughStrategy = require('./WriteThroughStrategy');
 
 const STRATEGIES = {
   none: NoCacheStrategy,
   'cache-aside': CacheAsideStrategy,
-  // 'write-through': WriteThroughStrategy,  (step 6)
+  'write-through': WriteThroughStrategy,
 };
 
 function createStrategy(name, dependencies) {

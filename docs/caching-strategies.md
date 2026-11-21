@@ -88,8 +88,49 @@ damage. This is inherent to cache-aside.
 
 ## `write-through`
 
-Not implemented yet. Reads will work like cache-aside; writes will update MongoDB and then the
-cache with the new value, defining the write order and what happens when the cache update fails.
+`WriteThroughStrategy` extends `CacheAsideStrategy`: **reads are the same** (lazy loading with a
+TTL), only writes change. Instead of deleting the key, a write stores the new value, so the next
+read is already a `HIT` with the new version. Write-through alone only defines writes; combined
+with lazy loading and a TTL it is the full pattern recommended by AWS: data never written since
+the cache started is still loaded on a miss, and keys nobody reads expire by themselves.
+
+### Write order
+
+| # | Step | If it fails |
+|---|---|---|
+| 1 | Write to MongoDB (source of truth) | error returned to the client; the cache is untouched |
+| 2 | `SET product:<id>` with the new value and a fresh TTL | partial failure, see below |
+| 3 | `INCR` the list generation (a list page cannot be updated in place) | list pages may be stale until their TTL |
+
+MongoDB comes first: if the cache were written first and the database write failed, readers would
+get a value that never existed in the source of truth. `create` also caches the new product
+(its first read is a `HIT`); `remove` deletes the key (there is no value to write).
+
+### Partial failure (MongoDB written, `SET` failed)
+
+The old value may still be in Redis. The strategy then tries a `DEL` of the key, so the next read
+is a miss that loads the new value from MongoDB, and logs a warning:
+
+```
+[write-through] cache SET failed for product 42 (version 7); old value deleted, the next read loads it from the database
+```
+
+If the `DEL` also fails (Redis down), the old value can be served **until its TTL expires**; the
+write still succeeds. The failed `set` (and `del`) commands appear in `GET /metrics` under
+`cache.commands`.
+
+### No atomicity
+
+MongoDB and Redis are two separate systems and the two writes are not a transaction:
+
+- between steps 1 and 2, readers still get the old value (a window of one Redis round trip);
+- two concurrent writers A and B can write MongoDB in the order A, B and the cache in the order
+  B, A: the cache keeps A's older value until the TTL expires. A conditional `SET` that only
+  replaces a lower `version` (Lua script, step 7) would close this gap;
+- the read race of cache-aside still exists, since reads are inherited.
+
+Write-through therefore **narrows** the staleness window (to ~0 in the normal case, measured with
+`SCRIPT=staleness`), but it does not make database and cache atomic: the TTL remains the safety net.
 
 ## Failure behavior
 
@@ -98,9 +139,10 @@ cache with the new value, defining the write order and what happens when the cac
 | Redis down | reads answer `BYPASS` from MongoDB, without 500 errors or waiting for timeouts; `/health` returns 200 with `status: degraded`; reconnection is automatic |
 | MongoDB down | data already in the cache is still served (`HIT`); everything else returns 503 immediately |
 | Invalidation fails (Redis down during a write) | the MongoDB write is kept; the cache may serve the old value **until the TTL expires** |
+| Write-through `SET` fails | the MongoDB write is kept; the key is deleted if possible, otherwise the old value is served until the TTL expires |
 
 The last row is why the database and the cache are **not atomic**: a write can reach one and not
-the other, and in cache-aside only the TTL repairs it. Short TTLs bound how long this can last.
+the other, and when the cache update fails only the TTL repairs it. Short TTLs bound how long this can last.
 
 ## Connecting to ElastiCache
 

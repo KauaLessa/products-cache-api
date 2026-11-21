@@ -16,12 +16,17 @@ async function start() {
   // on Redis nor pays any cost for it.
   const usesCache = config.cache.strategy !== 'none';
 
-  const metrics = createMetrics({
-    strategy: config.cache.strategy,
-    settings: usesCache
-      ? { ttlSeconds: config.cache.ttlSeconds, invalidateOnWrite: config.cache.invalidateOnWrite }
-      : null,
-  });
+  // Cache settings that change the results. CACHE_INVALIDATE_ON_WRITE only applies to
+  // cache-aside (write-through always updates the cache on writes).
+  const settings = usesCache
+    ? {
+        ttlSeconds: config.cache.ttlSeconds,
+        ...(config.cache.strategy === 'cache-aside' && {
+          invalidateOnWrite: config.cache.invalidateOnWrite,
+        }),
+      }
+    : null;
+  const metrics = createMetrics({ strategy: config.cache.strategy, settings });
   const redisClient = usesCache ? createRedisClient() : null;
   const cacheService = redisClient ? createCacheService(redisClient) : null;
 
@@ -51,8 +56,9 @@ async function start() {
 
   const server = app.listen(config.app.port, (err) => {
     if (err) throw err;
-    const cacheInfo = usesCache
-      ? `, ttl: ${config.cache.ttlSeconds}s, invalidate on write: ${config.cache.invalidateOnWrite}`
+    const cacheInfo = settings
+      ? `, ttl: ${settings.ttlSeconds}s` +
+        ('invalidateOnWrite' in settings ? `, invalidate on write: ${settings.invalidateOnWrite}` : '')
       : '';
     console.log(
       `[api] listening on port ${config.app.port} ` +
