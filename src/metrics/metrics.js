@@ -44,7 +44,7 @@ function increment(counters, group, name, outcome) {
   counters[group][name][outcome] = (counters[group][name][outcome] ?? 0) + 1;
 }
 
-function createMetrics({ strategy }) {
+function createMetrics({ strategy, settings = null }) {
   let since;
   let requests; // { "GET /products/:id": { count, status: { 200: n }, cache: { HIT, MISS, BYPASS } } }
   let calls; // { cache: { get: { hit: n, miss: n } }, source: { findById: { ok: n } } }
@@ -101,6 +101,9 @@ function createMetrics({ strategy }) {
 
       return {
         strategy,
+        // Cache settings that change the results (TTL, invalidation), so every saved
+        // snapshot says how it was measured. null with CACHE_STRATEGY=none.
+        settings,
         since: since.toISOString(),
         windowSeconds: Number(((Date.now() - since.getTime()) / 1000).toFixed(1)),
         // Totals over every read route (the ones that answer with X-Cache).

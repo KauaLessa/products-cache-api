@@ -102,7 +102,16 @@ The script only sends HTTP requests, so the same command works locally and on AW
 ```bash
 loadtest/run.sh                                         # 10 clients, 60 s, 80/20 distribution
 VUS_LIST="10 50 100" DIST=uniform loadtest/run.sh       # one run per number of clients
+SCRIPT=staleness ITERATIONS=5 loadtest/run.sh           # staleness window after writes
 ```
+
+Two scripts (`SCRIPT=...`):
+
+- `read` (default, [`read.js`](loadtest/read.js)): read load with a known key distribution; latency per `X-Cache`, throughput, hit rate.
+- `staleness` ([`staleness.js`](loadtest/staleness.js)): one sequential client writes a product (`PUT`) and then reads it
+  until the new `version` comes back. Reports `stale_after_write` (share of writes whose first read was stale) and
+  `staleness_window` (time until the new version is served). Compare `CACHE_INVALIDATE_ON_WRITE=true` (window ~0) with
+  `false` (window ~TTL); use a short `CACHE_TTL_SECONDS` (e.g. 5). It changes products: use a test database.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -112,10 +121,14 @@ VUS_LIST="10 50 100" DIST=uniform loadtest/run.sh       # one run per number of 
 | `DURATION` | `60s` | measured phase |
 | `WARMUP_SECONDS` | `10` | warm-up before `POST /metrics/reset` (`0` = cold cache) |
 | `DIST` | `hotset` | `hotset`: 80% of reads go to the first 20% of ids; `uniform`: any id |
+| `ITERATIONS` | `5` | `staleness`: writes to measure |
+| `POLL_MS` | `100` | `staleness`: pause between reads after a write (window precision) |
+| `MAX_WAIT_SECONDS` | `120` | `staleness`: give up waiting for the new version |
 | `REDIS_URL` | `redis://localhost:6379` | cache emptied (`FLUSHDB`) before each run; `rediss://...` for ElastiCache with TLS; empty = no flush |
 
-Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: latency
-percentiles per `X-Cache`, throughput) and `<name>-api.json` (`GET /metrics`: hits, misses, load on MongoDB).
+Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: k6 summary) and
+`<name>-api.json` (`GET /metrics`: cache settings, hits, misses, load on MongoDB). Names start with the
+strategy, plus `-noinvalidate` when `CACHE_INVALIDATE_ON_WRITE=false`.
 
 ## Status
 

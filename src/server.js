@@ -12,11 +12,16 @@ const { createMetrics } = require('./metrics/metrics');
 const { instrument, cacheOutcome, sourceOutcome } = require('./metrics/instrument');
 
 async function start() {
-  const metrics = createMetrics({ strategy: config.cache.strategy });
-
   // The no-cache baseline does not create a Redis client at all: it neither depends
   // on Redis nor pays any cost for it.
   const usesCache = config.cache.strategy !== 'none';
+
+  const metrics = createMetrics({
+    strategy: config.cache.strategy,
+    settings: usesCache
+      ? { ttlSeconds: config.cache.ttlSeconds, invalidateOnWrite: config.cache.invalidateOnWrite }
+      : null,
+  });
   const redisClient = usesCache ? createRedisClient() : null;
   const cacheService = redisClient ? createCacheService(redisClient) : null;
 
