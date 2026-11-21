@@ -10,3 +10,4 @@ docs
 Dockerfile
 .dockerignore
 compose*.yaml
+scripts/*.sh

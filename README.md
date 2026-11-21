@@ -101,8 +101,9 @@ The script only sends HTTP requests, so the same command works locally and on AW
 
 ```bash
 loadtest/run.sh                                         # 10 clients, 60 s, 80/20 distribution
-VUS_LIST="10 50 100" DIST=uniform loadtest/run.sh       # one run per number of clients
-SCRIPT=staleness ITERATIONS=5 loadtest/run.sh           # staleness window after writes
+VUS_LIST="10 50 100" DIST="hotset uniform" loadtest/run.sh   # one run per distribution and number of clients
+SCRIPT=staleness ITERATIONS=5 loadtest/run.sh                  # staleness window after writes
+loadtest/invalidation-demo.sh                                  # read / write / read transcript (invalidation example)
 ```
 
 Two scripts (`SCRIPT=...`):
@@ -120,11 +121,15 @@ Two scripts (`SCRIPT=...`):
 | `VUS_LIST` | `10` | concurrent clients, one run per value |
 | `DURATION` | `60s` | measured phase |
 | `WARMUP_SECONDS` | `10` | warm-up before `POST /metrics/reset` (`0` = cold cache) |
-| `DIST` | `hotset` | `hotset`: 80% of reads go to the first 20% of ids; `uniform`: any id |
+| `DIST` | `hotset` | `hotset`: 80% of reads go to the first 20% of ids; `uniform`: any id; several values = one run each |
 | `ITERATIONS` | `5` | `staleness`: writes to measure |
 | `POLL_MS` | `100` | `staleness`: pause between reads after a write (window precision) |
 | `MAX_WAIT_SECONDS` | `120` | `staleness`: give up waiting for the new version |
 | `REDIS_URL` | `redis://localhost:6379` | cache emptied (`FLUSHDB`) before each run; `rediss://...` for ElastiCache with TLS; empty = no flush |
+| `RESULTS` | `results` | output folder inside `loadtest/` (e.g. `results-aws`, to keep AWS and local runs apart) |
+
+The variables can also be kept in `loadtest/aws.env` (copy [`aws.env.example`](loadtest/aws.env.example); not versioned),
+read by `run.sh` and `invalidation-demo.sh`; a variable on the command line wins over the file.
 
 ### Charts
 
@@ -140,6 +145,13 @@ staleness bar chart. When a configuration ran more than once, the latest run is 
 Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: k6 summary) and
 `<name>-api.json` (`GET /metrics`: cache settings, hits, misses, load on MongoDB). Names start with the
 strategy, plus `-noinvalidate` for cache-aside with `CACHE_INVALIDATE_ON_WRITE=false`.
+
+## Deploy on AWS
+
+Step-by-step guide (in Portuguese) to build the measurement environment (VPC, security groups, EC2 for
+the API, MongoDB and load generator, ElastiCache) and run every test scenario:
+[docs/deploy-aws.md](docs/deploy-aws.md). On the API EC2, `scripts/api-config.sh <strategy> [ttl] [invalidate]`
+switches the cache configuration and restarts the API.
 
 ## Status
 

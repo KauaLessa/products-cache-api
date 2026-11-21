@@ -146,7 +146,7 @@ the other, and when the cache update fails only the TTL repairs it. Short TTLs b
 
 ## Connecting to ElastiCache
 
-Only `.env` changes are needed (see `.env.example`):
+Only `.env` changes are needed (see `.env.example`; full AWS setup in [deploy-aws.md](deploy-aws.md)):
 
 - `REDIS_HOST` / `REDIS_PORT`: the ElastiCache endpoint.
 - `REDIS_TLS=true`: when in-transit encryption is enabled.
