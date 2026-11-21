@@ -94,12 +94,35 @@ at startup (invalid values stop the API with a clear message). The most used:
 | `CACHE_INVALIDATE_ON_WRITE` | `true` | `false` skips invalidation (demonstrates stale data) |
 | `REDIS_HOST`, `REDIS_TLS`, `REDIS_CLUSTER_MODE`, `REDIS_PASSWORD` | local Redis | point the API to ElastiCache, `.env` changes only |
 
+## Load testing
+
+[k6](https://k6.io) scripts in [`loadtest/`](loadtest), run from the official Docker image (nothing to install).
+The script only sends HTTP requests, so the same command works locally and on AWS: only `API_URL` changes.
+
+```bash
+loadtest/run.sh                                         # 10 clients, 60 s, 80/20 distribution
+VUS_LIST="10 50 100" DIST=uniform loadtest/run.sh       # one run per number of clients
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `API_URL` | `http://localhost:3000` | API under test |
+| `PRODUCTS` | `10000` | must match the seed count (ids `1..N`) |
+| `VUS_LIST` | `10` | concurrent clients, one run per value |
+| `DURATION` | `60s` | measured phase |
+| `WARMUP_SECONDS` | `10` | warm-up before `POST /metrics/reset` (`0` = cold cache) |
+| `DIST` | `hotset` | `hotset`: 80% of reads go to the first 20% of ids; `uniform`: any id |
+| `REDIS_URL` | `redis://localhost:6379` | cache emptied (`FLUSHDB`) before each run; `rediss://...` for ElastiCache with TLS; empty = no flush |
+
+Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: latency
+percentiles per `X-Cache`, throughput) and `<name>-api.json` (`GET /metrics`: hits, misses, load on MongoDB).
+
 ## Status
 
 | # | Specification item | Status |
 |---|---|---|
 | 1 | API + database with reads and updates; no-cache baseline | ✅ |
-| 2 | Cache-aside with explicit key and TTL; measure hits, misses, latency, load on the source | 🟡 implemented; metrics next |
+| 2 | Cache-aside with explicit key and TTL; measure hits, misses, latency, load on the source | 🟡 implemented, metrics and load generator ready; AWS measurements pending |
 | 3 | Write-through; write order and behavior when the cache update fails | 🔴 |
 | 4 | Demonstrate invalidation/expiration and the staleness window | 🟡 building blocks ready |
 | 5 | Load tests with and without cache, scaling clients; percentiles, throughput, hit rate, costs | 🔴 |
