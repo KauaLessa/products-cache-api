@@ -153,6 +153,12 @@ the API, MongoDB and load generator, ElastiCache) and run every test scenario:
 [docs/deploy-aws.md](docs/deploy-aws.md). On the API EC2, `scripts/api-config.sh <strategy> [ttl] [invalidate]`
 switches the cache configuration and restarts the API.
 
+## Writing the report
+
+[docs/report-guide.md](docs/report-guide.md) (in Portuguese) gathers what the report team needs without reading
+the code: architecture, stack and tools, read/write diagrams of both strategies, configuration
+parameters, measurement method, result files and what each number means.
+
 ## Status
 
 | # | Specification item | Status |
