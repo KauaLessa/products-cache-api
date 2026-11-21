@@ -126,6 +126,17 @@ Two scripts (`SCRIPT=...`):
 | `MAX_WAIT_SECONDS` | `120` | `staleness`: give up waiting for the new version |
 | `REDIS_URL` | `redis://localhost:6379` | cache emptied (`FLUSHDB`) before each run; `rediss://...` for ElastiCache with TLS; empty = no flush |
 
+### Charts
+
+```bash
+loadtest/plot.sh                # tables and charts from loadtest/results/ into loadtest/results/charts/
+```
+
+[`plot.py`](loadtest/plot.py) (Python + matplotlib, run in Docker by `plot.sh`) reads every result pair and writes
+`read-runs.csv` / `staleness-runs.csv` (one row per run) and, per key distribution, line charts of latency (p50, p95),
+throughput, MongoDB queries per read and hit rate against the number of clients (one line per strategy), plus a
+staleness bar chart. When a configuration ran more than once, the latest run is used.
+
 Each run writes to `loadtest/results/` (not versioned): `<name>-k6.json` (client view: k6 summary) and
 `<name>-api.json` (`GET /metrics`: cache settings, hits, misses, load on MongoDB). Names start with the
 strategy, plus `-noinvalidate` for cache-aside with `CACHE_INVALIDATE_ON_WRITE=false`.
