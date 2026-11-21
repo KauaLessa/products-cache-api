@@ -35,26 +35,11 @@ instalado no seu computador além de um cliente SSH (Linux, macOS e Windows 10+ 
 
 ## 1. O que vamos montar
 
-```
- Seu computador ──SSH (porta 22)──► as três EC2 (só a partir do seu IP)
+![Arquitetura do ambiente de medição na AWS](aws-architecture.drawio.png)
 
- VPC tema10 (rede privada 10.0.0.0/16), zona us-east-1a
- ┌────────────────────────────────────────────────────────────────────────────┐
- │ Subnet pública                                                             │
- │  ┌─────────────────┐   :3000    ┌──────────────┐  :27017  ┌──────────────┐ │
- │  │ EC2 gerador     │ ─────────► │ EC2 API      │ ───────► │ EC2 MongoDB  │ │
- │  │ k6 (run.sh)     │            │ container    │          │ container    │ │
- │  └────────┬────────┘            │ products-api │          │ mongo:8.0    │ │
- │           │                     └──────┬───────┘          └──────────────┘ │
- │           │ :6379 (só FLUSHDB          │ :6379 (TLS)                       │
- │           │  entre execuções)          │                                   │
- │ Subnet privada                         ▼                                   │
- │           │                     ┌─────────────────────┐                    │
- │           └───────────────────► │ ElastiCache (Valkey)│                    │
- │                                 │ 1 nó, sem réplica   │                    │
- │                                 └─────────────────────┘                    │
- └────────────────────────────────────────────────────────────────────────────┘
-```
+O seu computador só acessa as EC2 por SSH. O gerador chama a API, a API usa o MongoDB e o cache, e o
+gerador só fala com o cache para esvaziá-lo entre execuções. As caixas vermelhas são os security groups
+(passo 4).
 
 | Máquina | O que roda | Por quê separada |
 |---|---|---|
