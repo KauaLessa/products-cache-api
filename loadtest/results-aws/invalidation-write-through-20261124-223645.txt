@@ -1,0 +1,6 @@
+# strategy: write-through, ttl: 10 s10, label: write-through, product: 42, 2026-11-24 22:36:45 UTC
+1. read                  X-Cache: MISS version 3
+2. read                  X-Cache: HIT version 3
+3. PUT (new price)       written to the database, version + 1
+4. read right after      X-Cache: HIT version 4
+5. read after 0 s        X-Cache: HIT version 4

@@ -1,0 +1,6 @@
+# strategy: cache-aside, ttl: 10 s10, label: cache-aside, product: 42, 2026-11-24 22:36:31 UTC
+1. read                  X-Cache: MISS version 2
+2. read                  X-Cache: HIT version 2
+3. PUT (new price)       written to the database, version + 1
+4. read right after      X-Cache: MISS version 3
+5. read after 0 s        X-Cache: HIT version 3

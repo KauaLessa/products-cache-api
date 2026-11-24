@@ -1,0 +1,4 @@
+label,timestamp,ttl_seconds,writes,stale_after_write,stale_reads,window_avg_ms,window_max_ms
+cache-aside,20261124-223038,5,10,0,0,0,0
+cache-aside-noinvalidate,20261124-223149,5,10,1,497,5069.9,5099
+write-through,20261124-223422,5,10,0,0,0,0

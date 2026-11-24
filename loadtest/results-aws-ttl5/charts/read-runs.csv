@@ -1,0 +1,2 @@
+label,dist,vus,timestamp,ttl_seconds,reads,throughput_rps,p50_ms,p95_ms,p99_ms,hit_avg_ms,miss_avg_ms,hit_rate,served_from_cache,db_reads_per_read
+cache-aside,uniform,50,20261124-223739,5,161404,2681.1,18.951,24.099,31.298,9.261,19.714,0.1166,0.1166,0.8834

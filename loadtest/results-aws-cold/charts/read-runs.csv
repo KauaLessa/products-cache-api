@@ -1,0 +1,2 @@
+label,dist,vus,timestamp,ttl_seconds,reads,throughput_rps,p50_ms,p95_ms,p99_ms,hit_avg_ms,miss_avg_ms,hit_rate,served_from_cache,db_reads_per_read
+cache-aside,hotset,50,20261124-221424,60,227805,3722.3,10.061,24.107,29.845,10.109,22.451,0.7597,0.7597,0.2403
